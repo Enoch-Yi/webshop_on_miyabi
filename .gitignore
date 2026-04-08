@@ -1,0 +1,24 @@
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Data (too large for git, download separately)
+webshop_data/
+*.json.gz
+
+# Training outputs
+runs/
+wandb/
+*.pt
+*.bin
+*.safetensors
+
+# System
+.DS_Store
+*.swp
+*.swo
+*~

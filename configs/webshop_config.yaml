@@ -1,0 +1,15 @@
+env:
+  type: WebShop
+  max_nb_steps_per_episode: 15
+  domain_randomization: false
+  observation_mode: text
+  num_products: null  # null = use ALL 1.18M products (full dataset)
+  human_goals: true   # use human-written goals (12,087 goals from full dataset)
+
+dataset:
+  num_train_goals: 11587  # first 11587 human goals for training
+  num_eval_goals: 500     # last 500 human goals for evaluation (standard WebShop benchmark)
+
+general:
+  random_seed: 42
+  use_cuda: true
