@@ -13,7 +13,10 @@ from tqdm import tqdm
 from rank_bm25 import BM25Okapi
 from flask import render_template_string
 from rich import print
-from pyserini.search.lucene import LuceneSearcher
+try:
+    from pyserini.search.lucene import LuceneSearcher
+except ImportError:
+    LuceneSearcher = None
 
 from webshop_env.utils import (
     BASE_DIR,
