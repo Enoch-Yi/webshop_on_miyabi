@@ -1,0 +1,16 @@
+torch>=2.1.0
+transformers>=4.36.0
+accelerate
+pyyaml
+numpy
+tqdm
+rich
+beautifulsoup4
+cleantext
+Flask
+rank_bm25
+spacy
+thefuzz
+wandb
+gym==0.24.0
+werkzeug<3.0
