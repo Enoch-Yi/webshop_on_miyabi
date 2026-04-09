@@ -49,8 +49,16 @@ Q_PER_STEP="${Q_PER_STEP:-4}"
 STATE_SEL="${STATE_SEL:-top_k}"
 ACTION_PAIR="${ACTION_PAIR:-cdb}"
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-MODEL_PATH="${MODEL_PATH:-$(python -c 'import os; print(os.path.expanduser("~/.cache/huggingface/hub/models--Qwen--Qwen2.5-1.5B-Instruct/snapshots/"))')$(ls ~/.cache/huggingface/hub/models--Qwen--Qwen2.5-1.5B-Instruct/snapshots/ | head -1)}"
+REPO_ROOT="${PBS_O_WORKDIR:-$(pwd)}"
+MODEL_PATH="${MODEL_PATH:-$(python - <<'PY'
+import glob
+import os
+
+base = os.path.expanduser("~/.cache/huggingface/hub/models--Qwen--Qwen2.5-1.5B-Instruct/snapshots")
+snaps = sorted(glob.glob(os.path.join(base, "*")))
+print(snaps[0] if snaps else "")
+PY
+)}"
 
 TAG="bd_w${W_BASE}_${W_BR}_${W_DPO}_ss${STATE_SEL}_ap${ACTION_PAIR}_seed${SEED}"
 SAVE_DIR="${REPO_ROOT}/runs/${TAG}"
@@ -71,10 +79,14 @@ fi
 
 export PYTHONUNBUFFERED=1
 export CUDA_VISIBLE_DEVICES=0
+export WEBSHOP_DATA_DIR="${WEBSHOP_DATA_DIR:-${HOME}/webshop_data}"
 export WANDB_PROJECT="${WANDB_PROJECT:-webshop-branching-dueling}"
+export WANDB_ENTITY="${WANDB_ENTITY:-yinuo00347-nanjing-university}"
 export WANDB_RUN_GROUP="${WANDB_RUN_GROUP:-${RUN_GROUP_DEFAULT}}"
 export WANDB_NAME="${WANDB_NAME:-${TAG}}"
 export WANDB_DIR="${WANDB_DIR:-${REPO_ROOT}/wandb}"
+export JAVA_HOME="${JAVA_HOME:-${CONDA_PREFIX}}"
+export JVM_PATH="${JVM_PATH:-${CONDA_PREFIX}/lib/jvm/lib/server/libjvm.so}"
 
 mkdir -p "${SAVE_DIR}"
 mkdir -p "${WANDB_DIR}"
@@ -85,6 +97,8 @@ echo "  w_base=${W_BASE} w_br=${W_BR} w_dpo=${W_DPO}"
 echo "  N=${N_ROLLOUTS} B=${B_STATES} K=${K_DUELS} Q=${Q_PER_STEP}"
 echo "  state_sel=${STATE_SEL} action_pair=${ACTION_PAIR}"
 echo "  W&B=${WANDB_PROJECT} / ${WANDB_RUN_GROUP} / ${WANDB_NAME}"
+echo "  DATA=${WEBSHOP_DATA_DIR}"
+echo "  JVM=${JVM_PATH}"
 echo "============================================================"
 
 python -u "${REPO_ROOT}/scripts/train_branching_dueling_webshop.py" \

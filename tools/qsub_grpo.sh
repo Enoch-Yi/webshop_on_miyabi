@@ -31,16 +31,28 @@ fi
 conda activate bd
 
 SEED="${SEED:-42}"
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-MODEL_PATH="${MODEL_PATH:-$(python -c 'from transformers.utils import TRANSFORMERS_CACHE; print(TRANSFORMERS_CACHE)')/../models--Qwen--Qwen2.5-1.5B-Instruct/snapshots/$(ls ~/.cache/huggingface/hub/models--Qwen--Qwen2.5-1.5B-Instruct/snapshots/ | head -1)}"
+REPO_ROOT="${PBS_O_WORKDIR:-$(pwd)}"
+MODEL_PATH="${MODEL_PATH:-$(python - <<'PY'
+import glob
+import os
+
+base = os.path.expanduser("~/.cache/huggingface/hub/models--Qwen--Qwen2.5-1.5B-Instruct/snapshots")
+snaps = sorted(glob.glob(os.path.join(base, "*")))
+print(snaps[0] if snaps else "")
+PY
+)}"
 SAVE_DIR="${REPO_ROOT}/runs/grpo_seed${SEED}"
 
 export PYTHONUNBUFFERED=1
 export CUDA_VISIBLE_DEVICES=0
+export WEBSHOP_DATA_DIR="${WEBSHOP_DATA_DIR:-${HOME}/webshop_data}"
 export WANDB_PROJECT="${WANDB_PROJECT:-webshop-branching-dueling}"
+export WANDB_ENTITY="${WANDB_ENTITY:-yinuo00347-nanjing-university}"
 export WANDB_RUN_GROUP="${WANDB_RUN_GROUP:-grpo-baseline}"
 export WANDB_NAME="${WANDB_NAME:-grpo_seed${SEED}}"
 export WANDB_DIR="${WANDB_DIR:-${REPO_ROOT}/wandb}"
+export JAVA_HOME="${JAVA_HOME:-${CONDA_PREFIX}}"
+export JVM_PATH="${JVM_PATH:-${CONDA_PREFIX}/lib/jvm/lib/server/libjvm.so}"
 
 mkdir -p "${SAVE_DIR}"
 mkdir -p "${WANDB_DIR}"
@@ -50,6 +62,8 @@ echo "GRPO Baseline | Seed=${SEED} | $(date)"
 echo "Model: ${MODEL_PATH}"
 echo "Save:  ${SAVE_DIR}"
 echo "W&B:   ${WANDB_PROJECT} / ${WANDB_RUN_GROUP} / ${WANDB_NAME}"
+echo "Data:  ${WEBSHOP_DATA_DIR}"
+echo "JVM:   ${JVM_PATH}"
 echo "============================================================"
 
 python -u "${REPO_ROOT}/scripts/train_branching_dueling_webshop.py" \
