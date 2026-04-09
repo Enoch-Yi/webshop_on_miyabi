@@ -1,5 +1,5 @@
 #!/bin/bash
-#PBS -q short-g
+#PBS -q regular-g
 #PBS -l select=1
 #PBS -l walltime=48:00:00
 #PBS -N bd_job
