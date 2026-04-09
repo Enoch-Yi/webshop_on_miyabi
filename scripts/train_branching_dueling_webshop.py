@@ -938,7 +938,7 @@ def compute_kl_penalty_accum(
     max_steps_per_traj: int = 8,
 ) -> float:
     """KL(pi_theta || pi_ref) penalty."""
-    from alfworld.llm_agents.qwen_policy import _teacher_forced_logp
+    from agents.qwen_policy import _teacher_forced_logp
 
     steps_with_resp = []
     for tr in trajectories:

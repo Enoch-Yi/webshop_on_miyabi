@@ -43,7 +43,7 @@ export WANDB_INIT_TIMEOUT=300
 
 SEED="${SEED:-44}"
 EXP="${EXP:-grpo}"
-REPO_ROOT="${HOME}/yinuo/webshop_no_rescue_raiden"
+REPO_ROOT="${HOME}/yinuo/webshop_first_on_miyabi/webshop_no_rescue_raiden"
 MODEL="/home/zhangzy/.cache/huggingface/hub/models--Qwen--Qwen2.5-1.5B-Instruct/snapshots/989aa7980e4cf806f80c7fef2b1adb7bc71aa306"
 
 # --- Experiment-specific parameters ---
