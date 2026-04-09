@@ -2,7 +2,7 @@
 #PBS -q short-g
 #PBS -l select=1
 #PBS -l walltime=48:00:00
-#PBS -N bd_s${SEED}
+#PBS -N bd_job
 #PBS -j oe
 #PBS -m abe
 
