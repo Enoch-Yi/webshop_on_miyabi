@@ -41,14 +41,30 @@ print(snaps[0]) if snaps else exit(1)
 SAVE_DIR="${REPO_ROOT}/runs/smoke_test"
 mkdir -p "${SAVE_DIR}"
 
+SMOKE_NUM_PRODUCTS="${SMOKE_NUM_PRODUCTS:-1000}"
+SMOKE_CONFIG="${SAVE_DIR}/smoke_webshop_config.yaml"
+
+python - <<'PY' "${REPO_ROOT}/configs/webshop_config.yaml" "${SMOKE_CONFIG}" "${SMOKE_NUM_PRODUCTS}"
+import sys
+import yaml
+
+src, dst, num_products = sys.argv[1], sys.argv[2], int(sys.argv[3])
+with open(src) as f:
+    cfg = yaml.safe_load(f)
+cfg.setdefault("env", {})["num_products"] = num_products
+with open(dst, "w") as f:
+    yaml.safe_dump(cfg, f, sort_keys=False)
+PY
+
 echo "============================================================"
 echo "Smoke Test | $(date)"
 echo "  Model: ${MODEL_PATH}"
 echo "  Output: ${SAVE_DIR}"
+echo "  Config: ${SMOKE_CONFIG} (num_products=${SMOKE_NUM_PRODUCTS})"
 echo "============================================================"
 
 python -u "${REPO_ROOT}/scripts/train_branching_dueling_webshop.py" \
-    "${REPO_ROOT}/configs/webshop_config.yaml" \
+    "${SMOKE_CONFIG}" \
     --model_name "${MODEL_PATH}" \
     --save_dir "${SAVE_DIR}" \
     --seed 42 \
