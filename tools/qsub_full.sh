@@ -21,7 +21,20 @@
 
 cd ${PBS_O_WORKDIR}
 
-module load miniforge 2>/dev/null || true
+source /etc/profile.d/modules.sh 2>/dev/null || source /usr/share/Modules/init/bash 2>/dev/null || true
+module load miniforge3/24.11.0-0 2>/dev/null || module load miniforge3 2>/dev/null || module load miniforge 2>/dev/null || true
+
+if command -v conda >/dev/null 2>&1; then
+    CONDA_BASE="$(conda info --base 2>/dev/null || true)"
+    if [[ -n "${CONDA_BASE}" && -f "${CONDA_BASE}/etc/profile.d/conda.sh" ]]; then
+        source "${CONDA_BASE}/etc/profile.d/conda.sh"
+    fi
+fi
+
+if [[ -z "${CONDA_EXE:-}" && -f "/work/opt/local/aarch64/cores/miniforge3/24.11.0-0/etc/profile.d/conda.sh" ]]; then
+    source "/work/opt/local/aarch64/cores/miniforge3/24.11.0-0/etc/profile.d/conda.sh"
+fi
+
 conda activate bd
 
 SEED="${SEED:-42}"
