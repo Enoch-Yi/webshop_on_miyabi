@@ -5,6 +5,7 @@
 #PBS -N bd_job
 #PBS -j oe
 #PBS -m abe
+#PBS -W group_list=gq50
 
 # ============================================================
 # Full Branching Dueling Training (Experiment D)

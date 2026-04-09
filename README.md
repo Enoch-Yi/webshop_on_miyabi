@@ -236,19 +236,19 @@ bash tools/run_smoke_test.sh
 cd /work/<group>/<user>/webshop_on_miyabi
 
 # GRPO baseline, seed 42
-qsub -v SEED=42 tools/qsub_grpo.sh
+qsub -W group_list=gq50 -v SEED=42 tools/qsub_grpo.sh
 
 # Full method, seed 42
-qsub -v SEED=42 tools/qsub_full.sh
+qsub -W group_list=gq50 -v SEED=42 tools/qsub_full.sh
 
 # 消融: Branch PG only (w_dpo=0)
-qsub -v SEED=42,W_DPO=0.0 tools/qsub_full.sh
+qsub -W group_list=gq50 -v SEED=42,W_DPO=0.0 tools/qsub_full.sh
 
 # 消融: Random state selection
-qsub -v SEED=42,STATE_SEL=random tools/qsub_full.sh
+qsub -W group_list=gq50 -v SEED=42,STATE_SEL=random tools/qsub_full.sh
 
 # 消融: Random action pair
-qsub -v SEED=42,ACTION_PAIR=random tools/qsub_full.sh
+qsub -W group_list=gq50 -v SEED=42,ACTION_PAIR=random tools/qsub_full.sh
 ```
 
 ### 推荐执行顺序
@@ -261,10 +261,10 @@ qsub -v SEED=42,ACTION_PAIR=random tools/qsub_full.sh
    - 先跑 `seed=42`
    - 确认 `log.jsonl` 和 wandb 都持续更新
 3. `Branch PG only`
-   - `qsub -v SEED=42,W_DPO=0.0 tools/qsub_full.sh`
+   - `qsub -W group_list=gq50 -v SEED=42,W_DPO=0.0 tools/qsub_full.sh`
    - 目标：确认 branch PG 单独是否有增益
 4. `Full method`
-   - `qsub -v SEED=42 tools/qsub_full.sh`
+   - `qsub -W group_list=gq50 -v SEED=42 tools/qsub_full.sh`
    - 目标：确认加入 local DPO 后是否优于 branch PG only
 5. 多 seed 扩展
    - 如果单 seed 结果合理，再补 `seed=43/44`

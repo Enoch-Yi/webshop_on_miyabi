@@ -5,6 +5,7 @@
 #PBS -N grpo_job
 #PBS -j oe
 #PBS -m abe
+#PBS -W group_list=gq50
 
 # ============================================================
 # GRPO Baseline Training (Experiment A)
