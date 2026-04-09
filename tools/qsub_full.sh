@@ -24,10 +24,6 @@ cd ${PBS_O_WORKDIR}
 module load miniforge 2>/dev/null || true
 conda activate bd
 
-export PYTHONUNBUFFERED=1
-export CUDA_VISIBLE_DEVICES=0
-export WANDB_PROJECT="${WANDB_PROJECT:-webshop-branching-dueling}"
-
 SEED="${SEED:-42}"
 W_BASE="${W_BASE:-1.0}"
 W_BR="${W_BR:-1.0}"
@@ -45,13 +41,36 @@ MODEL_PATH="${MODEL_PATH:-$(python -c 'import os; print(os.path.expanduser("~/.c
 TAG="bd_w${W_BASE}_${W_BR}_${W_DPO}_ss${STATE_SEL}_ap${ACTION_PAIR}_seed${SEED}"
 SAVE_DIR="${REPO_ROOT}/runs/${TAG}"
 
+if [[ "${W_BR}" == "0.0" && "${W_DPO}" == "0.0" ]]; then
+    RUN_GROUP_DEFAULT="grpo-only"
+elif [[ "${STATE_SEL}" == "random" && "${ACTION_PAIR}" == "random" ]]; then
+    RUN_GROUP_DEFAULT="all-random"
+elif [[ "${STATE_SEL}" == "random" ]]; then
+    RUN_GROUP_DEFAULT="random-state"
+elif [[ "${ACTION_PAIR}" == "random" ]]; then
+    RUN_GROUP_DEFAULT="random-pair"
+elif [[ "${W_DPO}" == "0.0" ]]; then
+    RUN_GROUP_DEFAULT="branch-pg-only"
+else
+    RUN_GROUP_DEFAULT="full-method"
+fi
+
+export PYTHONUNBUFFERED=1
+export CUDA_VISIBLE_DEVICES=0
+export WANDB_PROJECT="${WANDB_PROJECT:-webshop-branching-dueling}"
+export WANDB_RUN_GROUP="${WANDB_RUN_GROUP:-${RUN_GROUP_DEFAULT}}"
+export WANDB_NAME="${WANDB_NAME:-${TAG}}"
+export WANDB_DIR="${WANDB_DIR:-${REPO_ROOT}/wandb}"
+
 mkdir -p "${SAVE_DIR}"
+mkdir -p "${WANDB_DIR}"
 
 echo "============================================================"
 echo "Branching Dueling | ${TAG} | $(date)"
 echo "  w_base=${W_BASE} w_br=${W_BR} w_dpo=${W_DPO}"
 echo "  N=${N_ROLLOUTS} B=${B_STATES} K=${K_DUELS} Q=${Q_PER_STEP}"
 echo "  state_sel=${STATE_SEL} action_pair=${ACTION_PAIR}"
+echo "  W&B=${WANDB_PROJECT} / ${WANDB_RUN_GROUP} / ${WANDB_NAME}"
 echo "============================================================"
 
 python -u "${REPO_ROOT}/scripts/train_branching_dueling_webshop.py" \

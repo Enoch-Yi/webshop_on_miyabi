@@ -38,6 +38,11 @@ import time as _time
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
+try:
+    import wandb
+except ImportError:
+    wandb = None
+
 # Add project root to path
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 _PROJECT_ROOT = os.path.dirname(_SCRIPT_DIR)
@@ -126,6 +131,91 @@ class PromptResponseLogger:
 def load_yaml_config(path: str) -> dict:
     with open(path) as f:
         return yaml.safe_load(f)
+
+
+def _json_safe(value):
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    if isinstance(value, dict):
+        return {str(k): _json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(v) for v in value]
+    return str(value)
+
+
+def init_wandb_run(args, cfg: dict, save_dir: str):
+    """Create a W&B run if the environment is configured."""
+    if wandb is None:
+        print("wandb not installed; skipping W&B logging.", flush=True)
+        return None
+
+    if os.environ.get("WANDB_MODE", "").lower() == "disabled":
+        print("WANDB_MODE=disabled; skipping W&B logging.", flush=True)
+        return None
+
+    project = os.environ.get("WANDB_PROJECT", "webshop-branching-dueling")
+    entity = os.environ.get("WANDB_ENTITY")
+    group = os.environ.get("WANDB_RUN_GROUP")
+    run_name = os.environ.get("WANDB_NAME") or os.path.basename(save_dir.rstrip("/"))
+
+    run_config = {
+        "config_path": args.config_path,
+        "model_name": args.model_name,
+        "save_dir": save_dir,
+        "seed": args.seed,
+        "iters": args.iters,
+        "eval_every": args.eval_every,
+        "eval_games": args.eval_games,
+        "lr": args.lr,
+        "N": args.N,
+        "B": args.B,
+        "K": args.K,
+        "queries_per_step": args.queries_per_step,
+        "state_selection_mode": args.state_selection_mode,
+        "action_pair_mode": args.action_pair_mode,
+        "beta_dpo": args.beta_dpo,
+        "lambda_br": args.lambda_br,
+        "gamma_dpo": args.gamma_dpo,
+        "w_base": args.w_base,
+        "w_br": args.w_br,
+        "w_dpo": args.w_dpo,
+        "allow_syntax_training": args.allow_syntax_training,
+        "syntax_rescue_weight": args.syntax_rescue_weight,
+        "allow_semantic_training": args.allow_semantic_training,
+        "semantic_rescue_weight": args.semantic_rescue_weight,
+        "max_train_steps": args.max_train_steps,
+        "beta_kl": args.beta_kl,
+        "max_response_tokens": args.max_response_tokens,
+        "gen_temperature": args.gen_temperature,
+        "eval_temp": args.eval_temp,
+        "top_p": args.top_p,
+        "cdb_p": args.cdb_p,
+        "cdb_eta": args.cdb_eta,
+        "cdb_mu": args.cdb_mu,
+        "cdb_delta": args.cdb_delta,
+        "cdb_sigma0": args.cdb_sigma0,
+        "env": cfg.get("env", {}),
+        "dataset": cfg.get("dataset", {}),
+        "general": cfg.get("general", {}),
+    }
+
+    try:
+        run = wandb.init(
+            project=project,
+            entity=entity,
+            group=group,
+            name=run_name,
+            dir=os.environ.get("WANDB_DIR", save_dir),
+            config=_json_safe(run_config),
+        )
+        print(
+            f"W&B run initialized: project={project}, group={group}, name={run_name}",
+            flush=True,
+        )
+        return run
+    except Exception as exc:
+        print(f"W&B init failed, continuing without W&B: {exc}", flush=True)
+        return None
 
 
 def group_normalize(values: Sequence[float], eps: float = 1e-8) -> List[float]:
@@ -1190,6 +1280,7 @@ def main() -> None:
 
     tag = os.path.basename(args.save_dir.rstrip("/"))
     pr_logger = PromptResponseLogger(save_dir=args.save_dir, tag=tag)
+    wandb_run = init_wandb_run(args, config, args.save_dir)
 
     # ===================================================================
     # Training loop  (Algorithm 1)
@@ -1458,6 +1549,9 @@ def main() -> None:
                     tokenizer.save_pretrained(ckpt_path)
                     print(f"  -> saved best checkpoint "
                           f"(score={best_metric:.4f})")
+                    if wandb_run is not None:
+                        wandb_run.summary["best_eval_score"] = best_metric
+                        wandb_run.summary["best_model_path"] = ckpt_path
 
         parts = [f"{k}={v}" for k, v in log_entry.items()]
         print(" | ".join(parts))
@@ -1465,11 +1559,17 @@ def main() -> None:
         with open(log_path, "a") as f:
             f.write(json.dumps(log_entry) + "\n")
 
+        if wandb_run is not None:
+            wandb_run.log(_json_safe(log_entry), step=it)
+
     # Save final
     final_path = os.path.join(args.save_dir, "final_model")
     model.save_pretrained(final_path)
     tokenizer.save_pretrained(final_path)
     pr_logger.close()
+    if wandb_run is not None:
+        wandb_run.summary["final_model_path"] = final_path
+        wandb_run.finish()
     print(f"Training complete. Final model saved to {final_path}")
 
 

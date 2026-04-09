@@ -144,6 +144,29 @@ wandb login
 export WANDB_API_KEY="your_key_here"
 ```
 
+建议额外设置你的账号名，便于团队空间下准确落到同一个 entity：
+
+```bash
+export WANDB_ENTITY="<your_wandb_entity>"
+```
+
+当前训练脚本会在每个 iteration 结束后实时 `wandb.log(...)`，默认使用：
+- `WANDB_PROJECT=webshop-branching-dueling`
+- `WANDB_RUN_GROUP`
+  - `grpo-baseline`
+  - `branch-pg-only`
+  - `full-method`
+  - `random-state`
+  - `random-pair`
+  - `all-random`
+- `WANDB_NAME=<save_dir 对应的实验名>`
+
+如果你不想上传到 wandb，可以显式关闭：
+
+```bash
+export WANDB_MODE=disabled
+```
+
 ## Step 3: 准备 WebShop 数据
 
 WebShop 数据太大（~11GB），不包含在 git 仓库中。需要手动准备。
@@ -203,6 +226,7 @@ bash tools/run_smoke_test.sh
 - 2 个 iteration 正常完成，没有 crash
 - `log.jsonl` 中 `l_base` 不为 0
 - `eval_succ` 或 `train_score` > 0
+- wandb 页面中能看到新 run，且至少出现 `train_score`、`l_base`、`eval_succ`
 
 ## Step 5: 提交正式训练
 
@@ -226,6 +250,34 @@ qsub -v SEED=42,STATE_SEL=random tools/qsub_full.sh
 # 消融: Random action pair
 qsub -v SEED=42,ACTION_PAIR=random tools/qsub_full.sh
 ```
+
+### 推荐执行顺序
+
+不要一开始就把全部实验一次性提交。更稳妥的顺序是：
+
+1. `Smoke test`
+   - 目标：验证环境、数据、模型缓存、wandb 都正常
+2. `GRPO baseline`
+   - 先跑 `seed=42`
+   - 确认 `log.jsonl` 和 wandb 都持续更新
+3. `Branch PG only`
+   - `qsub -v SEED=42,W_DPO=0.0 tools/qsub_full.sh`
+   - 目标：确认 branch PG 单独是否有增益
+4. `Full method`
+   - `qsub -v SEED=42 tools/qsub_full.sh`
+   - 目标：确认加入 local DPO 后是否优于 branch PG only
+5. 多 seed 扩展
+   - 如果单 seed 结果合理，再补 `seed=43/44`
+6. 随机消融
+   - 最后再跑 `random-state` / `random-pair` / `all-random`
+
+推荐先完成这些任务，再进入大规模实验：
+
+- 任务 1：确认 `webshop_data/` 数据完整
+- 任务 2：确认 `wandb login` 成功，且 smoke test 能看到 run
+- 任务 3：确认 `GRPO seed42` 至少稳定跑过前几个 iteration
+- 任务 4：完成 `Branch PG only` 和 `Full method` 的单 seed 对比
+- 任务 5：只有在主线跑通后，再扩大到多 seed 和消融
 
 ### 一键提交全部实验
 
@@ -280,7 +332,18 @@ for line in open('runs/grpo_seed42/log.jsonl'):
 
 ### wandb Dashboard
 
-如果配置了 wandb，所有 metrics 会自动上传到 wandb dashboard。
+如果配置了 wandb，训练脚本会在每个 iteration 结束后自动上传当前 `log_entry`，所以你可以实时看见训练曲线，而不需要等训练结束后手工同步。
+
+常用查看方式：
+
+```bash
+# 登录节点上确认当前 shell 的 W&B 配置
+echo "$WANDB_ENTITY"
+echo "$WANDB_PROJECT"
+
+# 如果 run 没有出现，先检查是否真的登录成功
+wandb status
+```
 
 ### 关键指标
 
@@ -295,6 +358,25 @@ for line in open('runs/grpo_seed42/log.jsonl'):
 | `pref_N` | 有效偏好对数量 | > 0（实验 C/D） |
 | `action_rescue_rate` | 无效 action 被替换的比例 | 逐步下降 |
 | `invalid_action_rate` | 无效 action 比例 | 逐步下降 |
+
+推荐在 wandb 里优先盯这几个：
+- `eval_succ`
+- `eval_score`
+- `train_score`
+- `l_base`
+- `l_br`
+- `l_dpo`
+- `pref_N`
+- `action_rescue_rate`
+- `invalid_action_rate`
+
+如果 wandb 页面没有 run，按下面顺序排查：
+
+1. `wandb status`
+2. `echo $WANDB_ENTITY`
+3. `echo $WANDB_PROJECT`
+4. 检查作业输出里是否打印了 `W&B run initialized: ...`
+5. 检查是否误设了 `WANDB_MODE=disabled`
 
 ---
 

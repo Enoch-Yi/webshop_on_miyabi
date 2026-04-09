@@ -20,6 +20,7 @@ except ImportError:
 
 from webshop_env.utils import (
     BASE_DIR,
+    DATA_DIR,
     DEFAULT_FILE_PATH,
     DEFAULT_REVIEW_PATH,
     DEFAULT_ATTR_PATH,
@@ -206,7 +207,12 @@ def init_search_engine(num_products=None):
         indexes = 'indexes'
     else:
         raise NotImplementedError(f'num_products being {num_products} is not supported yet.')
-    search_engine = LuceneSearcher(os.path.join(BASE_DIR, f'../search_engine/{indexes}'))
+    if LuceneSearcher is None:
+        raise ImportError(
+            "pyserini is required for WebShop search but is not installed in the current environment."
+        )
+    index_dir = os.path.join(DATA_DIR, indexes)
+    search_engine = LuceneSearcher(index_dir)
     return search_engine
 
 
