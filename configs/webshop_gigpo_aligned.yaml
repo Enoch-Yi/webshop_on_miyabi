@@ -1,0 +1,67 @@
+env:
+  observation_mode: text
+  num_products: null
+  human_goals: true
+  train_goal_start: 0
+  train_goal_end: 11587
+  eval_goal_start: 11587
+  eval_goal_end: 12087
+  max_steps: 15
+
+model:
+  name: Qwen/Qwen2.5-1.5B-Instruct
+  max_prompt_length: 4096
+  max_response_tokens: 512
+  history_length: 2
+  gen_temperature: 1.0
+  eval_temperature: 0.4
+  top_p: 0.95
+
+training:
+  seed: 42
+  total_epochs: 150
+  eval_every: 10
+  eval_games: 150
+  train_data_size: 8
+  group_size: 8
+  lr: 1.0e-6
+  beta_kl: 0.01
+  invalid_action_penalty: -0.1
+  success_reward: 10.0
+  max_train_steps: 15
+  top_m_actions: 0
+  save_dir: "./runs/grpo_baseline"
+
+algorithm:
+  name: grpo
+  w_base: 1.0
+  w_br: 0.0
+  w_dpo: 0.0
+  B: 0  # per-task branching budget
+  K: 0
+  lambda_u: 1.0
+  lambda_i: 1.0
+  beta_dpo: 0.1
+  lambda_br: 1.0
+  gamma_dpo: 1.0
+  state_selection_mode: top_k
+  action_pair_mode: cdb
+  tau_s: null
+  cdb_p: 128
+  cdb_eta: 1.0
+  cdb_mu: 0.1
+  cdb_delta: 0.01
+  cdb_sigma0: 1.0
+
+logging:
+  jsonl_name: "log.jsonl"
+  console_log: true
+  prompt_response_log: true
+  prompt_response_max_bytes: 1000000
+  wandb_enabled: false
+  wandb_project: "webshop_on_miyabi_ai_ready"
+  wandb_name: null
+  wandb_group: null
+  wandb_entity: null
+  wandb_mode: "online"
+  wandb_tags: []

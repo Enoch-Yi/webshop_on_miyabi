@@ -10,8 +10,14 @@ DEBUG_PROD_SIZE = None  # set to `None` to disable
 
 DATA_DIR = os.environ.get("WEBSHOP_DATA_DIR", join(BASE_DIR, '../data'))
 
-DEFAULT_ATTR_PATH = join(DATA_DIR, 'items_ins_v2_1000.json')
-DEFAULT_FILE_PATH = join(DATA_DIR, 'items_shuffle_1000.json')
+DEFAULT_ATTR_PATH = os.environ.get(
+    "WEBSHOP_ATTR_FILE",
+    join(DATA_DIR, 'items_ins_v2_1000.json'),
+)
+DEFAULT_FILE_PATH = os.environ.get(
+    "WEBSHOP_PRODUCTS_FILE",
+    join(DATA_DIR, 'items_shuffle_1000.json'),
+)
 DEFAULT_REVIEW_PATH = join(DATA_DIR, 'reviews.json')
 
 FEAT_CONV = join(DATA_DIR, 'feat_conv.pt')
