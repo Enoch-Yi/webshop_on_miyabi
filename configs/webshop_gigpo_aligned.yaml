@@ -22,7 +22,7 @@ training:
   total_epochs: 150
   eval_every: 10
   eval_games: 150
-  train_data_size: 8
+  train_data_size: 16
   group_size: 8
   lr: 1.0e-6
   beta_kl: 0.01
@@ -58,7 +58,7 @@ logging:
   console_log: true
   prompt_response_log: true
   prompt_response_max_bytes: 1000000
-  wandb_enabled: false
+  wandb_enabled: true
   wandb_project: "webshop_on_miyabi_ai_ready"
   wandb_name: null
   wandb_group: null

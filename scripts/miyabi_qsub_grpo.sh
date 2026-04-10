@@ -29,7 +29,8 @@ conda activate bd
 REPO_ROOT="${PBS_O_WORKDIR:-$(pwd)}"
 SEED="${SEED:-42}"
 MODEL_PATH="${MODEL_PATH:-Qwen/Qwen2.5-1.5B-Instruct}"
-SAVE_DIR="${REPO_ROOT}/runs/miyabi_grpo_seed${SEED}"
+RUN_TAG="${RUN_TAG:-grpo}"
+SAVE_DIR="${SAVE_DIR:-${REPO_ROOT}/runs/miyabi_${RUN_TAG}_seed${SEED}}"
 
 export PYTHONUNBUFFERED=1
 export CUDA_VISIBLE_DEVICES=0
@@ -38,6 +39,8 @@ export WEBSHOP_SEARCH_DIR="${WEBSHOP_SEARCH_DIR:-$HOME/webshop_data}"
 export WANDB_PROJECT="${WANDB_PROJECT:-webshop_on_miyabi_ai_ready}"
 export JAVA_HOME="${JAVA_HOME:-${CONDA_PREFIX}}"
 export JVM_PATH="${JVM_PATH:-${CONDA_PREFIX}/lib/jvm/lib/server/libjvm.so}"
+
+export RUN_NAME="miyabi_${RUN_TAG}_seed${SEED}"
 
 mkdir -p "${SAVE_DIR}"
 

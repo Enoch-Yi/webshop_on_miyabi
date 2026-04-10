@@ -10,8 +10,9 @@ GPU_ID="${GPU_ID:-0}"
 SEED="${SEED:-42}"
 RUN_NAME="${RUN_NAME:-full_train_seed${SEED}}"
 SAVE_DIR="${SAVE_DIR:-${REPO_ROOT}/runs/${RUN_NAME}}"
+CHECKPOINT_DIR="${CHECKPOINT_DIR:-/work/gq50/q50006/checkpoints/${RUN_NAME}}"
 
-WANDB_ENABLE="${WANDB_ENABLE:-0}"
+WANDB_ENABLE="${WANDB_ENABLE:-1}"
 WANDB_PROJECT="${WANDB_PROJECT:-webshop_on_miyabi_ai_ready}"
 WANDB_NAME="${WANDB_NAME:-${RUN_NAME}}"
 WANDB_GROUP="${WANDB_GROUP:-}"
@@ -27,10 +28,13 @@ export JVM_PATH="${JVM_PATH:-${CONDA_PREFIX:-}/lib/jvm/lib/server/libjvm.so}"
 
 mkdir -p "${SAVE_DIR}"
 
+mkdir -p "${CHECKPOINT_DIR}"
+
 ARGS=(
   --config "${CONFIG_PATH}"
   --model_name "${MODEL_PATH}"
   --save_dir "${SAVE_DIR}"
+  --checkpoint_dir "${CHECKPOINT_DIR}"
   --seed "${SEED}"
 )
 
@@ -52,6 +56,7 @@ echo "  PYTHON:        ${PYTHON}"
 echo "  CONFIG:        ${CONFIG_PATH}"
 echo "  MODEL_PATH:    ${MODEL_PATH}"
 echo "  SAVE_DIR:      ${SAVE_DIR}"
+echo "  CHECKPOINT_DIR: ${CHECKPOINT_DIR}"
 echo "  WANDB_ENABLE:  ${WANDB_ENABLE}"
 echo "  START:         $(date)"
 echo "============================================================"

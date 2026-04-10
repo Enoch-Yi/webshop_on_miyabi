@@ -17,6 +17,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--config", type=str, required=True)
     parser.add_argument("--model_name", type=str, default=None)
     parser.add_argument("--save_dir", type=str, default=None)
+    parser.add_argument("--checkpoint_dir", type=str, default=None)
     parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--top_m_actions", type=int, default=None)
     parser.add_argument("--max_train_steps", type=int, default=None)
@@ -102,7 +103,8 @@ def main() -> None:
 
     model_name = cfg["model"]["name"]
     save_dir = cfg["training"]["save_dir"]
-    trainer = WebShopTrainer(cfg=cfg, model_name=model_name, save_dir=save_dir)
+    checkpoint_dir = args.checkpoint_dir
+    trainer = WebShopTrainer(cfg=cfg, model_name=model_name, save_dir=save_dir, checkpoint_dir=checkpoint_dir)
     trainer.train()
 
 

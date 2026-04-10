@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import json
 import os
 import random
 import time
@@ -28,9 +29,11 @@ from src.utils.types import BranchingSettings, LossWeights, Preference, RolloutM
 
 
 class WebShopTrainer:
-    def __init__(self, cfg: Dict[str, Any], model_name: str, save_dir: str) -> None:
+    def __init__(self, cfg: Dict[str, Any], model_name: str, save_dir: str, checkpoint_dir: str | None = None) -> None:
         self.cfg = cfg
         self.save_dir = save_dir
+        self.checkpoint_dir = checkpoint_dir or save_dir
+        self.best_eval_score = -float("inf")
         seed = int(cfg["training"]["seed"])
         random.seed(seed)
         np.random.seed(seed)
@@ -127,9 +130,10 @@ class WebShopTrainer:
         estimator = SameTaskGRPO()
         total_epochs = int(self.cfg["training"]["total_epochs"])
         eval_every = int(self.cfg["training"]["eval_every"])
+        start_epoch = self._try_resume()
         start = time.time()
         try:
-            for epoch in range(total_epochs):
+            for epoch in range(start_epoch, total_epochs):
                 epoch_start = time.time()
                 batch = self.group_sampler.sample_train_batch()
                 grouped_trajectories: list[list[Trajectory]] = []
@@ -361,10 +365,81 @@ class WebShopTrainer:
 
                 if (epoch + 1) % eval_every == 0:
                     self.evaluate(epoch=epoch)
+                    self._save_resume_checkpoint(epoch)
         finally:
+            self._save_model("final_model")
             if self.prompt_response_logger is not None:
                 self.prompt_response_logger.close()
             self.wandb_logger.finish()
+
+    def _save_model(self, tag: str) -> None:
+        out_dir = os.path.join(self.checkpoint_dir, tag)
+        os.makedirs(out_dir, exist_ok=True)
+        self.policy.model.save_pretrained(out_dir)
+        self.policy.tokenizer.save_pretrained(out_dir)
+        if self.console_log:
+            print(f"  [checkpoint] saved {tag} -> {out_dir}", flush=True)
+
+    def _save_resume_checkpoint(self, epoch: int) -> None:
+        ckpt_dir = os.path.join(self.checkpoint_dir, "resume_ckpt")
+        os.makedirs(ckpt_dir, exist_ok=True)
+        self.policy.model.save_pretrained(ckpt_dir)
+        self.policy.tokenizer.save_pretrained(ckpt_dir)
+        torch.save(self.optimizer.state_dict(), os.path.join(ckpt_dir, "optimizer.pt"))
+        if self.ref_model is not None:
+            torch.save(self.ref_model.state_dict(), os.path.join(ckpt_dir, "ref_model.pt"))
+        meta = {
+            "epoch": epoch,
+            "best_eval_score": self.best_eval_score,
+            "cdb_history": [(h[0].tolist(), h[1].tolist(), float(h[2])) for h in self.cdb.history],
+            "cdb_theta": self.cdb.theta.tolist() if hasattr(self.cdb, "theta") and self.cdb.theta is not None else None,
+            "rng_python": random.getstate(),
+            "rng_numpy": [np.random.get_state()[0], np.random.get_state()[1].tolist(), int(np.random.get_state()[2]), int(np.random.get_state()[3]), float(np.random.get_state()[4])],
+        }
+        torch.save(torch.random.get_rng_state(), os.path.join(ckpt_dir, "rng_torch.pt"))
+        if torch.cuda.is_available():
+            torch.save(torch.cuda.get_rng_state(), os.path.join(ckpt_dir, "rng_cuda.pt"))
+        with open(os.path.join(ckpt_dir, "meta.json"), "w") as f:
+            json.dump(meta, f)
+        if self.console_log:
+            print(f"  [resume_ckpt] saved epoch={epoch} -> {ckpt_dir}", flush=True)
+
+    def _try_resume(self) -> int:
+        ckpt_dir = os.path.join(self.checkpoint_dir, "resume_ckpt")
+        meta_path = os.path.join(ckpt_dir, "meta.json")
+        if not os.path.exists(meta_path):
+            return 0
+        with open(meta_path) as f:
+            meta = json.load(f)
+        resumed_epoch = int(meta["epoch"])
+        self.best_eval_score = float(meta["best_eval_score"])
+        from transformers import AutoModelForCausalLM
+        self.policy.model = AutoModelForCausalLM.from_pretrained(ckpt_dir, torch_dtype=torch.float16).to(self.device)
+        self.optimizer = torch.optim.Adam(self.policy.model.parameters(), lr=float(self.cfg["training"]["lr"]))
+        opt_path = os.path.join(ckpt_dir, "optimizer.pt")
+        if os.path.exists(opt_path):
+            self.optimizer.load_state_dict(torch.load(opt_path, map_location=self.device, weights_only=True))
+        ref_path = os.path.join(ckpt_dir, "ref_model.pt")
+        if self.ref_model is not None and os.path.exists(ref_path):
+            self.ref_model.load_state_dict(torch.load(ref_path, map_location=self.device, weights_only=True))
+        if meta.get("cdb_theta") is not None:
+            self.cdb.theta = np.array(meta["cdb_theta"])
+        if meta.get("cdb_history"):
+            self.cdb.history = [(np.array(h[0]), np.array(h[1]), h[2]) for h in meta["cdb_history"]]
+        rng_torch_path = os.path.join(ckpt_dir, "rng_torch.pt")
+        if os.path.exists(rng_torch_path):
+            torch.random.set_rng_state(torch.load(rng_torch_path, weights_only=True))
+        rng_cuda_path = os.path.join(ckpt_dir, "rng_cuda.pt")
+        if torch.cuda.is_available() and os.path.exists(rng_cuda_path):
+            torch.cuda.set_rng_state(torch.load(rng_cuda_path, weights_only=True))
+        if meta.get("rng_python"):
+            random.setstate(tuple(tuple(x) if isinstance(x, list) else x for x in meta["rng_python"]))
+        if meta.get("rng_numpy"):
+            rng_np = meta["rng_numpy"]
+            np.random.set_state((rng_np[0], np.array(rng_np[1], dtype=np.uint32), rng_np[2], rng_np[3], rng_np[4]))
+        if self.console_log:
+            print(f"  [resume] restored from epoch={resumed_epoch}, best_eval={self.best_eval_score:.4f}", flush=True)
+        return resumed_epoch + 1
 
     @torch.no_grad()
     def evaluate(self, epoch: int) -> None:
@@ -403,4 +478,10 @@ class WebShopTrainer:
         self.wandb_logger.log(payload, step=epoch)
         if self.console_log:
             print(format_console_metrics(f"[eval epoch={epoch}]", payload), flush=True)
+        eval_score = payload["eval_score"]
+        if eval_score > self.best_eval_score:
+            self.best_eval_score = eval_score
+            self._save_model("best_model")
+            if self.console_log:
+                print(f"  [eval epoch={epoch}] new best eval_score={eval_score:.4f}, saved best_model", flush=True)
         self.policy.set_eval(False)

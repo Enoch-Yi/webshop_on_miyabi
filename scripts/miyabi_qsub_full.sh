@@ -29,7 +29,22 @@ conda activate bd
 REPO_ROOT="${PBS_O_WORKDIR:-$(pwd)}"
 SEED="${SEED:-42}"
 MODEL_PATH="${MODEL_PATH:-Qwen/Qwen2.5-1.5B-Instruct}"
-SAVE_DIR="${REPO_ROOT}/runs/miyabi_full_seed${SEED}"
+RUN_TAG="${RUN_TAG:-full}"
+SAVE_DIR="${SAVE_DIR:-${REPO_ROOT}/runs/miyabi_${RUN_TAG}_seed${SEED}}"
+
+# Algorithm defaults (can be overridden via qsub -v)
+W_BR="${W_BR:-1.0}"
+W_DPO="${W_DPO:-1.0}"
+B="${B:-4}"
+K="${K:-2}"
+STATE_SEL="${STATE_SEL:-}"
+ACTION_PAIR="${ACTION_PAIR:-}"
+TAU_S="${TAU_S:-}"
+CDB_P="${CDB_P:-}"
+CDB_ETA="${CDB_ETA:-}"
+CDB_MU="${CDB_MU:-}"
+CDB_DELTA="${CDB_DELTA:-}"
+CDB_SIGMA0="${CDB_SIGMA0:-}"
 
 export PYTHONUNBUFFERED=1
 export CUDA_VISIBLE_DEVICES=0
@@ -41,11 +56,24 @@ export JVM_PATH="${JVM_PATH:-${CONDA_PREFIX}/lib/jvm/lib/server/libjvm.so}"
 
 mkdir -p "${SAVE_DIR}"
 
+export RUN_NAME="miyabi_${RUN_TAG}_seed${SEED}"
+
+EXTRA_ARGS=()
+[[ -n "${STATE_SEL}" ]]   && EXTRA_ARGS+=(--state_selection_mode "${STATE_SEL}")
+[[ -n "${ACTION_PAIR}" ]]  && EXTRA_ARGS+=(--action_pair_mode "${ACTION_PAIR}")
+[[ -n "${TAU_S}" ]]        && EXTRA_ARGS+=(--tau_s "${TAU_S}")
+[[ -n "${CDB_P}" ]]        && EXTRA_ARGS+=(--cdb_p "${CDB_P}")
+[[ -n "${CDB_ETA}" ]]      && EXTRA_ARGS+=(--cdb_eta "${CDB_ETA}")
+[[ -n "${CDB_MU}" ]]       && EXTRA_ARGS+=(--cdb_mu "${CDB_MU}")
+[[ -n "${CDB_DELTA}" ]]    && EXTRA_ARGS+=(--cdb_delta "${CDB_DELTA}")
+[[ -n "${CDB_SIGMA0}" ]]   && EXTRA_ARGS+=(--cdb_sigma0 "${CDB_SIGMA0}")
+
 "${REPO_ROOT}/run_full_train.sh" \
   --seed "${SEED}" \
   --model_name "${MODEL_PATH}" \
   --save_dir "${SAVE_DIR}" \
-  --B 4 \
-  --K 2 \
-  --w_br 1.0 \
-  --w_dpo 1.0
+  --B "${B}" \
+  --K "${K}" \
+  --w_br "${W_BR}" \
+  --w_dpo "${W_DPO}" \
+  "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}"
